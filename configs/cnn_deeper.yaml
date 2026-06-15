@@ -1,1 +1,7 @@
-
+experiment_name: "cnn_lr_decay_v5"
+model_name: "SimpleCNN"
+learning_rate: 0.0005   
+epochs: 20    
+batch_size: 128             
+test_size: 0.2
+random_state: 42

@@ -1,13 +1,10 @@
 import torch
 import wandb
-from src.models import LinearBaselineModel
+from src.models import LinearBaselineModel, SimpleCNN
 
 def train_one_epoch(model, dataloader, criterion, optimizer, device):
     model.train()
-    running_loss = 0.0
-    correct = 0
-    total = 0
-    
+    running_loss, correct, total = 0.0, 0, 0
     for images, labels in dataloader:
         images, labels = images.to(device), labels.to(device)
         
@@ -21,15 +18,11 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device):
         _, predicted = outputs.max(1)
         total += labels.size(0)
         correct += predicted.eq(labels).sum().item()
-        
     return running_loss / total, correct / total
 
 def validate(model, dataloader, criterion, device):
     model.eval()
-    running_loss = 0.0
-    correct = 0
-    total = 0
-    
+    running_loss, correct, total = 0.0, 0, 0
     with torch.no_grad():
         for images, labels in dataloader:
             images, labels = images.to(device), labels.to(device)
@@ -40,19 +33,23 @@ def validate(model, dataloader, criterion, device):
             _, predicted = outputs.max(1)
             total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
-            
     return running_loss / total, correct / total
 
 def run_experiment(config, train_loader, val_loader):
-    wandb.init(project="FER2013-Project", name=config.get("experiment_name", "nameless_run"), config=config)
+    wandb.init(
+        project="FER2013-Project", 
+        name=config.get("experiment_name", "nameless_run"), 
+        config=config
+    )
     cfg = wandb.config
-    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     if cfg.model_name == "LinearBaseline":
         model = LinearBaselineModel().to(device)
+    elif cfg.model_name == "SimpleCNN":
+        model = SimpleCNN().to(device)
     else:
-        raise ValueError(f"Unknown model architecture: {cfg.model_name}")
+        raise ValueError(f"Unknown architecture option: {cfg.model_name}")
         
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.learning_rate)
@@ -70,7 +67,6 @@ def run_experiment(config, train_loader, val_loader):
             "val/loss": val_loss,
             "val/accuracy": val_acc
         })
-        
         print(f"Epoch [{epoch+1}/{cfg.epochs}] -> Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f}")
         
     wandb.finish()
