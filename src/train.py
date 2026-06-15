@@ -44,7 +44,7 @@ def validate(model, dataloader, criterion, device):
     return running_loss / total, correct / total
 
 def run_experiment(config, train_loader, val_loader):
-    wandb.init(project="FER2013-Project", config=config)
+    wandb.init(project="FER2013-Project", name=config.get("experiment_name", "nameless_run"), config=config)
     cfg = wandb.config
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
