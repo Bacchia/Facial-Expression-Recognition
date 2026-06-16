@@ -1,6 +1,7 @@
 import torch
+import numpy as np
 import wandb
-from src.models import LinearBaselineModel, SimpleCNN, SolidResNet
+from src.models import LinearBaselineModel, SimpleCNN, SolidResNet, UltimateResNet
 
 def train_one_epoch(model, dataloader, criterion, optimizer, device):
     model.train()
@@ -35,6 +36,7 @@ def validate(model, dataloader, criterion, device):
             correct += predicted.eq(labels).sum().item()
     return running_loss / total, correct / total
 
+
 def run_experiment(config, train_loader, val_loader):
     wandb.init(
         project="FER2013-Project", 
@@ -48,13 +50,22 @@ def run_experiment(config, train_loader, val_loader):
         model = LinearBaselineModel().to(device)
     elif cfg.model_name == "SimpleCNN":
         model = SimpleCNN().to(device)
-    elif cfg.model_name == "SolidResNet":  
+    elif cfg.model_name == "SolidResNet":
         model = SolidResNet().to(device)
+    elif cfg.model_name == "UltimateResNet": 
+        model = UltimateResNet().to(device)
     else:
         raise ValueError(f"Unknown architecture option: {cfg.model_name}")
         
-    criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=cfg.learning_rate)
+    criterion = torch.nn.CrossEntropyLoss(label_smoothing=cfg.get("label_smoothing", 0.0))
+    
+    wd = cfg.get("weight_decay", 1e-4)
+    if cfg.model_name == "UltimateResNet":
+        optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.learning_rate, weight_decay=wd)
+    else:
+        optimizer = torch.optim.Adam(model.parameters(), lr=cfg.learning_rate, weight_decay=wd)
+    
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg.epochs)
     
     wandb.watch(model, log="all", log_freq=10)
     
@@ -62,12 +73,14 @@ def run_experiment(config, train_loader, val_loader):
         train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device)
         val_loss, val_acc = validate(model, val_loader, criterion, device)
         
+        scheduler.step() 
         wandb.log({
             "epoch": epoch + 1,
             "train/loss": train_loss,
             "train/accuracy": train_acc,
             "val/loss": val_loss,
-            "val/accuracy": val_acc
+            "val/accuracy": val_acc,
+            "learning_rate": optimizer.param_groups[0]['lr']
         })
         print(f"Epoch [{epoch+1}/{cfg.epochs}] -> Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f}")
         

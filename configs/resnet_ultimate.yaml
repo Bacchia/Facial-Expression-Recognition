@@ -1,0 +1,9 @@
+experiment_name: "ultimate_regularized_v9"
+model_name: "UltimateResNet"
+learning_rate: 0.0012       
+weight_decay: 0.035        
+label_smoothing: 0.15       
+epochs: 30
+batch_size: 128            
+test_size: 0.2
+random_state: 42
