@@ -1,6 +1,6 @@
 import torch
 import wandb
-from src.models import LinearBaselineModel, SimpleCNN
+from src.models import LinearBaselineModel, SimpleCNN, SolidResNet
 
 def train_one_epoch(model, dataloader, criterion, optimizer, device):
     model.train()
@@ -48,6 +48,8 @@ def run_experiment(config, train_loader, val_loader):
         model = LinearBaselineModel().to(device)
     elif cfg.model_name == "SimpleCNN":
         model = SimpleCNN().to(device)
+    elif cfg.model_name == "SolidResNet":  
+        model = SolidResNet().to(device)
     else:
         raise ValueError(f"Unknown architecture option: {cfg.model_name}")
         
