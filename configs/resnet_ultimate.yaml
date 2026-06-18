@@ -1,9 +1,9 @@
-experiment_name: "ultimate_regularized_v9"
+experiment_name: "ultimate_resnet_mixup_v12"
 model_name: "UltimateResNet"
 learning_rate: 0.0012       
-weight_decay: 0.035        
-label_smoothing: 0.15       
-epochs: 30
-batch_size: 128            
+weight_decay: 0.01          
+label_smoothing: 0.10       
+epochs: 35                 
+batch_size: 64
 test_size: 0.2
 random_state: 42

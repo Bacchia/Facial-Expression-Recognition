@@ -163,3 +163,78 @@ class UltimateResNet(nn.Module):
         x = self.gap(x)
         x = self.flatten(x)
         return self.classifier(x)
+
+
+class AttentionBlock(nn.Module):
+    def __init__(self, dim, heads=4, dim_head=32, dropout=0.1):
+        super(AttentionBlock, self).__init__()
+        inner_dim = dim_head * heads
+        self.heads = heads
+        self.scale = dim_head ** -0.5
+
+        self.norm = nn.LayerNorm(dim)
+        self.to_qkv = nn.Linear(dim, inner_dim * 3, bias=False)
+        
+        self.to_out = nn.Sequential(
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        )
+
+    def forward(self, x):
+        x = self.norm(x)
+        b, n, d = x.shape
+        
+        qkv = self.to_qkv(x).chunk(3, dim=-1)
+        q, k, v = map(lambda t: t.view(b, n, self.heads, -1).transpose(1, 2), qkv)
+
+        dots = torch.matmul(q, k.transpose(-2, -1)) * self.scale
+        attn = dots.softmax(dim=-1)
+
+        out = torch.matmul(attn, v)
+        out = out.transpose(1, 2).contiguous().view(b, n, -1)
+        return x + self.to_out(out)
+
+
+class HybridViT(nn.Module):
+    def __init__(self, num_classes=7, embed_dim=128, depth=2, heads=4):
+        super(HybridViT, self).__init__()
+        
+        self.cnn_features = nn.Sequential(
+            nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2), 
+            
+            nn.Conv2d(64, embed_dim, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(embed_dim),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2) 
+        )
+        
+        self.pos_embedding = nn.Parameter(torch.randn(1, 12 * 12, embed_dim))
+        
+        self.transformer = nn.Sequential(*[
+            AttentionBlock(dim=embed_dim, heads=heads, dim_head=embed_dim//heads)
+            for _ in range(depth)
+        ])
+        
+        self.norm = nn.LayerNorm(embed_dim)
+        self.classifier = nn.Sequential(
+            nn.Linear(embed_dim, 256),
+            nn.ReLU(),
+            nn.Dropout(0.4),
+            nn.Linear(256, num_classes)
+        )
+
+    def forward(self, x):
+        x = self.cnn_features(x)
+        
+        b, c, h, w = x.shape
+        x = x.view(b, c, h * w).transpose(1, 2)
+        
+        x = x + self.pos_embedding
+        
+        x = self.transformer(x)
+        
+        x = self.norm(x.mean(dim=1))
+        return self.classifier(x)

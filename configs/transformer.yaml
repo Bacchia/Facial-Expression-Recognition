@@ -1,1 +1,12 @@
-
+experiment_name: "hybrid_vit_deep_v2"
+model_name: "HybridViT"
+learning_rate: 0.0015       
+weight_decay: 0.001         
+label_smoothing: 0.05       
+epochs: 30                  
+batch_size: 64
+test_size: 0.2
+random_state: 42
+embed_dim: 256             
+depth: 4                   
+heads: 8                  
